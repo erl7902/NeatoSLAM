@@ -81,38 +81,55 @@ class NeatoNode:
         scan.range_min = 0.020
         scan.range_max = 5.0
         odom = Odometry(header=rospy.Header(frame_id="odom"), child_frame_id='base_link')
-	goal = [5,5] # [x,y]
-	alpha = .10
+		goal = [5,5] # [x,y]
+		alpha = .10
+		thalpha = .05
+		subgoal = goal
+		check = True #toggle
     
         # main loop of driver
         r = rospy.Rate(2)
-	if(check):
-        	self.robot.requestScan()
         while not rospy.is_shutdown():
+		
+			# get motor encoder values
+			left, right = self.robot.getMotors()
+			
             if(check): 
-		# prepare laser scan
+				self.robot.requestScan()
+				# prepare laser scan
             	scan.header.stamp = rospy.Time.now()    
             	#self.robot.requestScan()
             	scan.ranges = self.robot.getScanRanges()
 
-            # get motor encoder values
-            left, right = self.robot.getMotors()
+				# send updated movement commands
+				# We're using Tangent Bug here.
+				# WIP 
+				# Finding angle to turn to in order to reach the goal 
+				distToGoal = sqrt((goal[0] - this.x) ** 2 + (goal[1] - this.y) ** 2)
+				thetaToGoal = Math.sin(goal[1]/goal[0]) - Math.sin(this.y/this.x) #w/ respect to x axis. 
+				
+				# getting the point that minimizes the distance from point to goal
+				minGoalDist = min(scan.ranges, key = lambda d: sqrt((goal[0] - (this.x + math.cos(scan.ranges.index(d) / d))) ** 2 + (goal[1] - (this.y + math.sin(scan.ranges.index(d) / d))) ** 2)) 
+				minGoalDistAngle = scan.ranges.index(minGoalDist)
+				
+				# now we want to go to that location for as long as we can.....
+				# I'm sure there's a better way do do this. 
+				subgoal = [this.x + math.cos(minGoalDistAngle / minGoalDist), this.y + math.sin(minGoalDistAngle / minGoalDist)]
+				
+				#checking to see if we're done
+				if(abs(this.th - minGoalDistAngle) <= thalpha): 
+					if((abs(subgoal[0] - this.x) <= alpha) and (abs(subgoal[1] - this.y) <= alpha):
+						self.cmd_vel = [0,0]; # we're at the subgoal/goal. Just chill for a sec (+/- alpha)
+					else: # we're at the right angle, but wrong location.
+						self.cmd_vel[100, 100]
+				else: #wrong angle
+					self.cmd_vel = [30, 0]
 
-            # send updated movement commands
-	    # We're using Bug 0 here.
-            # WIP 
-	    thetaToGoal = 
-	    if((abs(goal[0] - this.x) <= alpha) and (abs(goal[1] - this.y) <= alpha):
-		self.cmd_vel = [0,0]; # we're at the goal (+/- alpha)   
-	    elif(scan.ranges[scan.angle_min] < 0.5):
-
-
-
-            self.robot.setMotors(self.cmd_vel[0], self.cmd_vel[1], max(abs(self.cmd_vel[0]),abs(self.cmd_vel[1])))
+				self.robot.setMotors(self.cmd_vel[0], self.cmd_vel[1], max(abs(self.cmd_vel[0]),abs(self.cmd_vel[1])))
             
             # ask for the next scan while we finish processing stuff
             # Don't think I want two scans right now. 
-	    # self.robot.requestScan()
+			# self.robot.requestScan()
             
             # now update position information
             dt = (scan.header.stamp - then).to_sec()
