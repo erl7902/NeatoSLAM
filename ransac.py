@@ -2,6 +2,7 @@ import random as ran
 from scipy.optimize import curve_fit
 
 # Ransac Algorithm.
+# Adapted from 'SLAM for Dummies'
 
 N, S, D, X, C
 #Prereq: D must be divisible by the step degree from the laser
