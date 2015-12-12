@@ -13,6 +13,8 @@ def __init__(N1,S1,D1,X1,C1):
 	X = X1
 	C = C1
 
+	
+# Corners - find that minima, see if they look like two intersecting ransac lines	
 
 def ransac_go (un_data):
 	iter = 0
@@ -60,4 +62,4 @@ def ransac_go (un_data):
 		# And now we do it all again.	
 		iter = iter + 1
 		
-			
+	return extracted		

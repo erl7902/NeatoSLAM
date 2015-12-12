@@ -67,7 +67,7 @@ class NeatoNode:
     def spin(self):        
         encoders = [0,0]
 
-        self.x = 0                  # position in xy plane
+        self.x = 0     # position in xy plane
         self.y = 0
         self.th = 0
         then = rospy.Time.now()
@@ -85,6 +85,7 @@ class NeatoNode:
 		alpha = .10
 		thalpha = .05
 		subgoal = goal
+		X = [0.0, 0.0, 0.0] #X matrix for EKF - starts out at pose 0,0,0 w/ no landmarks.
 		check = True #toggle
     
         # main loop of driver
