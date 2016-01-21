@@ -1,32 +1,31 @@
 import random as ran
 from scipy.optimize import curve_fit
 
+
 # Ransac Algorithm.
 # Adapted from 'SLAM for Dummies'
-
-N, S, D, X, C
-#Prereq: D must be divisible by the step degree from the laser
-def __init__(N1,S1,D1,X1,C1):
-	N = N1
-	S = S1
-	D = D1
-	X = X1
-	C = C1
+step = 0.017437326 #step from data - ~1 degree per step
+N = 5, S = 5, D = 10, X = 7, C = 4 
+#Prereq: degrees must be divisible by the step degree from the laser
+#Overwriting this by using indexes instead. D * step = # of degrees away
+#def __init__(N1,S1,D1,X1,C1):
 
 	
-# Corners - find that minima, see if they look like two intersecting ransac lines	
+# Lines.
 
 def ransac_go (un_data):
 	iter = 0
 	extracted = []
 	while( (len (un_data) > 0) and ( (len ( un_data)) > C) and (iter < N) ):
+		
 		#select random reading 
 		newread = ran.randint(0, ( len ( un_data)))
-		#creating a bunch of samples of size S including the new reading.
-		samplesX = [newread]
+		
+		#creating a bunch of samples of size S w/in degree D including the new reading.
+		samplesX = [newread * step]
 		samplesY = [(un_data[newread])]
 		while (len(samples) < S):
-			newindex = ran.randint( (index(newread - degree )) , (index(newread + degree )))
+			newindex = ran.randint( (index(newread - D )) , (index(newread + D )))
 			if (newindex not in samplesX): 
 				samplesX.append( newindex )
 				samplesY.append(un_data[newindex])
@@ -50,10 +49,19 @@ def ransac_go (un_data):
 				subsubsetX.append ( samplesX[i] ) 
 				subsubsetY.append ( samplesY[i] )
 				count = count + 1
-		if ( count > C ) # count is greater than consensus C 
-			# new least squares fit line 
-			C, D = 	curve_fit((lambda x, A, B : A*x + B), subsubsetX, subsubsetY)[0] 
-			extracted.append ( (C, D) ) # add the line as a tuple
+		if ( count > C ) # count is greater than consensus C  
+		
+			# points for use with line segments
+			xlow = min(subsubsetX)
+			xhigh = max(subsubsetX)
+			ylow = min(subsubsetY)
+			yhigh = max(subsubsetY)
+			
+			# new least squares fit line
+			popt, pcov = curve_fit((lambda x, A, B : A*x + B), subsubsetX, subsubsetY)[0]
+			# add the line as a line segment tuple. popt[0] = a, popt[1] = b
+			# throw out the covariance. 
+			extracted.append ( popt ) 
 			
 			# Remove all of the subsubset from the original data
 			for i in range (0 , len ( subsubsetX ) ):
@@ -61,5 +69,5 @@ def ransac_go (un_data):
 			
 		# And now we do it all again.	
 		iter = iter + 1
-		
+	
 	return extracted		

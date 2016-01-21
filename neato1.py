@@ -35,8 +35,15 @@ import roslib; roslib.load_manifest("neato_node1")
 import rospy
 from math import sin,cos, atan, degrees
 from Tkinter import *
+from evidencegrid import EvidenceGrid
+import window
 import ImageTK
 import numpy as np
+
+import ransac
+import EKF
+import data_association
+#import threading
 
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Quaternion
@@ -64,12 +71,13 @@ class NeatoNode:
 
         self.cmd_vel = [10,10] 
 
-    def spin(self):        
+    def main(self):        
         encoders = [0,0]
 
         self.x = 0     # position in xy plane
         self.y = 0
         self.th = 0
+		self.landmarks = []
         then = rospy.Time.now()
 
         # things that don't ever change
@@ -85,7 +93,7 @@ class NeatoNode:
 		alpha = .10
 		thalpha = .05
 		subgoal = goal
-		X = [0.0, 0.0, 0.0] #X matrix for EKF - starts out at pose 0,0,0 w/ no landmarks.
+		#X = [0.0, 0.0, 0.0] #X matrix for EKF - starts out at pose 0,0,0 w/ no landmarks.
 		check = True #toggle
     
         # main loop of driver
@@ -104,7 +112,6 @@ class NeatoNode:
 
 				# send updated movement commands
 				# We're using Tangent Bug here.
-				# WIP 
 				# Finding angle to turn to in order to reach the goal 
 				distToGoal = sqrt((goal[0] - this.x) ** 2 + (goal[1] - this.y) ** 2)
 				thetaToGoal = Math.sin(goal[1]/goal[0]) - Math.sin(this.y/this.x) #w/ respect to x axis. 
@@ -114,7 +121,6 @@ class NeatoNode:
 				minGoalDistAngle = scan.ranges.index(minGoalDist)
 				
 				# now we want to go to that location for as long as we can.....
-				# I'm sure there's a better way do do this. 
 				subgoal = [this.x + math.cos(minGoalDistAngle / minGoalDist), this.y + math.sin(minGoalDistAngle / minGoalDist)]
 				
 				#checking to see if we're done
@@ -129,8 +135,15 @@ class NeatoNode:
 				self.robot.setMotors(self.cmd_vel[0], self.cmd_vel[1], max(abs(self.cmd_vel[0]),abs(self.cmd_vel[1])))
             
             # ask for the next scan while we finish processing stuff
-            # Don't think I want two scans right now. 
+            # Don't think I want two scans right now, commenting out
 			# self.robot.requestScan()
+			
+			#send the old values to the evidence grid
+			for i in range (0, len(ranges)):
+				if(ranges[i] >= 0.020): 
+					self.grid.observe_something(ranges[i], (i * 0.017437326), self.x, self.y)
+				else
+					self.grid.observe_nothing((i * 0.017437326), self.x, self.y)
             
             # now update position information
             dt = (scan.header.stamp - then).to_sec()
@@ -142,12 +155,26 @@ class NeatoNode:
             
             dx = (d_left+d_right)/2
             dth = (d_right-d_left)/(BASE_WIDTH/1000.0)
-
-            x = cos(dth)*dx
+			
+			x = cos(dth)*dx
             y = -sin(dth)*dx
             self.x += cos(self.th)*x - sin(self.th)*y
             self.y += sin(self.th)*x + cos(self.th)*y
             self.th += dth
+			
+			#distance travelled. 
+			
+			'''
+			Start EKF
+			'''
+			update_from_odom(self.x, self.y, self.th)
+			extracted = ransac_go(scan.ranges)
+			
+			#new_set[0] = old landmarks, [1] = new landmarks
+			new_set = data_association(extracted, landmarks)
+			update_from_reobserved(new_set[0])
+			landmarks = add_new_landmarks(landmarks[1])
+			
 
             # prepare tf from base_link to odom
             quaternion = Quaternion()
@@ -186,5 +213,10 @@ class NeatoNode:
         self.cmd_vel = [ int(x-th) , int(x+th) ]
 
 if __name__ == "__main__":    
-    robot = NeatoNode()
-    robot.spin()
+    try: 
+		robot = NeatoNode()
+		self.grid = EvidenceGrid(0.01, 512, 512) #evidence grid
+		self.efk = EFK()
+		robot.main()
+	except rospy.ROSInterruptException: 
+		pass
