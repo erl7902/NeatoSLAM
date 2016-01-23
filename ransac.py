@@ -5,15 +5,22 @@ from scipy.optimize import curve_fit
 # Ransac Algorithm.
 # Adapted from 'SLAM for Dummies'
 step = 0.017437326 #step from data - ~1 degree per step
-N = 5, S = 5, D = 10, X = 7, C = 4 
+N = 5
+S = 5 
+D = 10
+X = 7
+C = 4 
 #Prereq: degrees must be divisible by the step degree from the laser
 #Overwriting this by using indexes instead. D * step = # of degrees away
 #def __init__(N1,S1,D1,X1,C1):
 
 	
 # Lines.
+un_dataa = [0.0, 0.0, 0.0, 1.0, .99, .98, .97, .96, .95, .94, .93, .9, .7, .5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, .1, .4, .7, .2, .9]
+un_data1 = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+un_data2 = [1.5, 1.3, 1.2, 1.1, 1.6, 1.7, 0.0, 0.0, 0.0, .7, .8, 1.5, 1.5, 1.6, 1.7]
 
-def ransac_go (un_data):
+def ransac_go(un_data):
 	iter = 0
 	extracted = []
 	while( (len (un_data) > 0) and ( (len ( un_data)) > C) and (iter < N) ):
@@ -22,13 +29,14 @@ def ransac_go (un_data):
 		newread = ran.randint(0, ( len ( un_data)))
 		
 		#creating a bunch of samples of size S w/in degree D including the new reading.
-		samplesX = [newread * step]
-		samplesY = [(un_data[newread])]
+		#convert from polar to cartesian coordinates. x = laserscan * cos(angle), y = laserscan * sin(angle)
+		samplesX = [un_data[newread] * math.cos(newread * step)]
+		samplesY = [(un_data[newread]) * math.sin(newread * step)]
 		while (len(samples) < S):
 			newindex = ran.randint( (index(newread - D )) , (index(newread + D )))
 			if (newindex not in samplesX): 
-				samplesX.append( newindex )
-				samplesY.append(un_data[newindex])
+				samplesX.append(un_data[newread] * math.cos(newread * step))
+				samplesY.append((un_data[newread]) * math.sin(newread * step))
 		
 		#Least squares line - linear regression, can change function at will (lambda) 
 		#returns slope (A) and intercept (B)
@@ -49,7 +57,7 @@ def ransac_go (un_data):
 				subsubsetX.append ( samplesX[i] ) 
 				subsubsetY.append ( samplesY[i] )
 				count = count + 1
-		if ( count > C ) # count is greater than consensus C  
+		if ( count > C ): # count is greater than consensus C  
 		
 			# points for use with line segments
 			xlow = min(subsubsetX)
@@ -70,4 +78,9 @@ def ransac_go (un_data):
 		# And now we do it all again.	
 		iter = iter + 1
 	
-	return extracted		
+	return extracted	
+
+
+print ransac_go(un_dataa)
+print ransac_go(un_data1)
+print ransac_go(un_data2)	
